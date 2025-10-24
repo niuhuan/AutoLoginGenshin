@@ -5,7 +5,7 @@ import sys
 import os
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
                             QWidget, QLabel, QLineEdit, QPushButton, QFileDialog, 
-                            QGroupBox, QInputDialog)
+                            QGroupBox, QInputDialog, QMessageBox)
 from PyQt5.QtCore import Qt
 from game_manager import GameManager
 from config_manager import ConfigManager
@@ -57,11 +57,6 @@ class ConfigWindow(QMainWindow):
         
         settings_layout.addLayout(path_input_layout)
         
-        # 保存配置按钮
-        save_btn = QPushButton("保存配置")
-        save_btn.clicked.connect(self.save_config)
-        settings_layout.addWidget(save_btn)
-        
         layout.addWidget(settings_group)
         
         # 测试启动组
@@ -104,6 +99,27 @@ class ConfigWindow(QMainWindow):
         )
         if file_path:
             self.path_input.setText(file_path)
+            # 自动保存配置
+            self.auto_save_config(file_path)
+    
+    def auto_save_config(self, file_path):
+        """自动保存配置"""
+        try:
+            # 验证路径
+            is_valid, message = self.config_manager.validate_game_path(file_path)
+            if not is_valid:
+                QMessageBox.warning(self, "路径无效", message)
+                return False
+            
+            # 保存游戏路径
+            self.config_manager.set_game_path(file_path)
+            QMessageBox.information(self, "保存成功", "游戏路径已自动保存")
+            self.logger.info("游戏路径已自动保存")
+            return True
+        except Exception as e:
+            QMessageBox.critical(self, "保存失败", f"保存配置失败: {e}")
+            self.logger.error(f"自动保存配置失败: {e}")
+            return False
     
     def load_config(self):
         """加载配置到界面"""
@@ -141,24 +157,36 @@ class ConfigWindow(QMainWindow):
         # 验证路径
         is_valid, message = self.config_manager.validate_game_path(path)
         if not is_valid:
-            self.logger.warning(message)
+            QMessageBox.warning(self, "路径无效", message)
             return
 
         # 验证账号密码
         if not username:
-            self.logger.warning("请输入账号")
+            QMessageBox.warning(self, "输入错误", "请输入账号")
             return
 
         if not password:
-            self.logger.warning("请输入密码")
+            QMessageBox.warning(self, "输入错误", "请输入密码")
+            return
+        
+        # 显示测试启动提示
+        reply = QMessageBox.question(
+            self, '测试启动', 
+            f'即将使用账号 "{username}" 启动游戏，是否继续？',
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply != QMessageBox.Yes:
             return
         
         # 使用统一的登录处理方法
         success = self.game_manager.handle_login(username=username, password=password, game_path=path)
         
         if success:
+            QMessageBox.information(self, "启动成功", "游戏启动成功！")
             self.logger.info("✅ 测试启动成功！")
         else:
+            QMessageBox.critical(self, "启动失败", "游戏启动失败，请检查配置")
             self.logger.error("❌ 测试启动失败")
     
     def save_account(self):
@@ -168,11 +196,11 @@ class ConfigWindow(QMainWindow):
         
         # 验证账号密码
         if not username:
-            self.logger.warning("请输入账号")
+            QMessageBox.warning(self, "输入错误", "请输入账号")
             return
 
         if not password:
-            self.logger.warning("请输入密码")
+            QMessageBox.warning(self, "输入错误", "请输入密码")
             return
         
         # 获取账号名称
@@ -188,20 +216,22 @@ class ConfigWindow(QMainWindow):
         
         # 检查账号是否已存在
         if self.account_manager.account_exists(account_name):
-            reply = QInputDialog.question(
+            reply = QMessageBox.question(
                 self, '账号已存在', 
                 f'账号 "{account_name}" 已存在，是否覆盖？',
-                QInputDialog.Yes | QInputDialog.No
+                QMessageBox.Yes | QMessageBox.No
             )
-            if reply != QInputDialog.Yes:
+            if reply != QMessageBox.Yes:
                 return
         
         # 保存账号
         success = self.account_manager.save_account(account_name, username, password)
         
         if success:
+            QMessageBox.information(self, "保存成功", f"账号 '{account_name}' 保存成功！")
             self.logger.info(f"✅ 账号 '{account_name}' 保存成功！")
         else:
+            QMessageBox.critical(self, "保存失败", f"账号 '{account_name}' 保存失败")
             self.logger.error(f"❌ 账号 '{account_name}' 保存失败")
 
 

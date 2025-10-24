@@ -22,17 +22,25 @@ def run_as_admin():
     else:
         # 重新以管理员权限启动
         try:
-            # 构建命令行参数，排除程序路径
-            args = sys.argv[1:] if len(sys.argv) > 1 else []
-            args_str = " ".join(args)
-            
-            print(f"重新启动参数: {sys.argv}")
-            print(f"传递参数: {args_str}")
+            # 判断是exe文件还是python脚本
+            if sys.argv[0].endswith('.exe'):
+                # exe文件：排除程序路径，只传递实际参数
+                args = sys.argv[1:] if len(sys.argv) > 1 else []
+                args_str = " ".join(args)
+                executable = sys.argv[0]  # 使用exe文件本身
+                print(f"[EXE模式] 重新启动参数: {sys.argv}")
+                print(f"[EXE模式] 传递参数: {args_str}")
+            else:
+                # python脚本：保持完整参数（包括脚本路径）
+                args_str = " ".join(sys.argv)
+                executable = sys.executable
+                print(f"[Python模式] 重新启动参数: {sys.argv}")
+                print(f"[Python模式] 传递参数: {args_str}")
             
             ctypes.windll.shell32.ShellExecuteW(
                 None, 
                 "runas", 
-                sys.executable, 
+                executable, 
                 args_str, 
                 None, 
                 1
