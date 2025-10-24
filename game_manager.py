@@ -241,34 +241,55 @@ class GameManager:
             return False
     
     def _check_and_handle_login(self, username=None, password=None):
-        """检测并处理登录"""
-        try:
-            self.logger.info("开始检测屏幕内容...")
-            
-            # 检测是否存在进入游戏按钮
-            if self._detect_enter_game_button():
-                self.logger.info("🔍 检测到进入游戏按钮，需要登录")
-                
-                if username and password:
-                    self.logger.info(f"开始自动登录流程，用户名: {username}")
-                    login_success = self._perform_auto_login(username, password)
-                    
-                    if login_success:
-                        self.logger.info("🎉 自动登录完成！程序将在3秒后退出...")
-                        time.sleep(3)
-                        self.logger.info("程序退出")
-                        import sys
-                        sys.exit(0)
-                    else:
-                        self.logger.error("❌ 自动登录失败")
+        """检测并处理登录（带重试机制）"""
+        max_retries = 2  # 最多重试2次
+        retry_interval = 30  # 重试间隔30秒
+        
+        for attempt in range(max_retries + 1):  # 0, 1, 2 共3次尝试
+            try:
+                if attempt > 0:
+                    self.logger.info(f"🔄 第 {attempt + 1} 次尝试检测登录窗口...")
                 else:
-                    self.logger.warning("⚠️ 检测到需要登录，但未提供用户名和密码")
-                    self.logger.info("请手动登录或使用 -u 和 -p 参数提供账号信息")
-            else:
-                self.logger.info("✅ 未检测到进入游戏按钮，无需登录")
+                    self.logger.info("开始检测屏幕内容...")
                 
-        except Exception as e:
-            self.logger.error(f"检测登录状态失败: {e}")
+                # 检测是否存在进入游戏按钮
+                if self._detect_enter_game_button():
+                    self.logger.info("🔍 检测到进入游戏按钮，需要登录")
+                    
+                    if username and password:
+                        self.logger.info(f"开始自动登录流程，用户名: {username}")
+                        login_success = self._perform_auto_login(username, password)
+                        
+                        if login_success:
+                            self.logger.info("🎉 自动登录完成！程序将在3秒后退出...")
+                            time.sleep(3)
+                            self.logger.info("程序退出")
+                            import sys
+                            sys.exit(0)
+                        else:
+                            self.logger.error("❌ 自动登录失败")
+                            return  # 登录失败直接返回，不重试
+                    else:
+                        self.logger.warning("⚠️ 检测到需要登录，但未提供用户名和密码")
+                        self.logger.info("请手动登录或使用 -u 和 -p 参数提供账号信息")
+                        return  # 没有账号密码直接返回
+                else:
+                    if attempt < max_retries:
+                        self.logger.info(f"❌ 第 {attempt + 1} 次检测未发现登录窗口")
+                        self.logger.info(f"⏰ 等待 {retry_interval} 秒后进行第 {attempt + 2} 次检测...")
+                        time.sleep(retry_interval)
+                    else:
+                        self.logger.info("✅ 经过多次检测，确认无需登录")
+                        return
+                    
+            except Exception as e:
+                self.logger.error(f"第 {attempt + 1} 次检测登录状态失败: {e}")
+                if attempt < max_retries:
+                    self.logger.info(f"⏰ 等待 {retry_interval} 秒后重试...")
+                    time.sleep(retry_interval)
+                else:
+                    self.logger.error("❌ 所有检测尝试均失败")
+                    return
     
     def _detect_enter_game_button(self, threshold=0.8):
         """检测屏幕中是否存在进入游戏按钮"""
