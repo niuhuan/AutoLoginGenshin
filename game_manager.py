@@ -252,6 +252,11 @@ class GameManager:
                 else:
                     self.logger.info("开始检测屏幕内容...")
                 
+                # 先检测并点击同意按钮（如果有的话）
+                if self._detect_and_click_agree():
+                    self.logger.info("⏰ 已点击同意按钮，等待5秒让界面加载...")
+                    time.sleep(5)
+                
                 # 检测是否存在进入游戏按钮
                 if self._detect_enter_game_button():
                     self.logger.info("🔍 检测到进入游戏按钮，需要登录")
@@ -690,4 +695,54 @@ class GameManager:
                 
         except Exception as e:
             self.logger.error(f"检测和点击圆圈失败: {e}")
+            return False
+    
+    def _detect_and_click_agree(self):
+        """检测并点击同意按钮"""
+        try:
+            import pyautogui
+            import cv2
+            import numpy as np
+            
+            self.logger.info("检测同意按钮...")
+            
+            # 加载同意按钮模板
+            agree_template_path = os.path.join(os.path.dirname(__file__), 'assets', 'agree.png')
+            if not os.path.exists(agree_template_path):
+                self.logger.debug(f"同意按钮模板不存在: {agree_template_path}")
+                return False
+            
+            agree_template = cv2.imread(agree_template_path, cv2.IMREAD_COLOR)
+            if agree_template is None:
+                self.logger.error("无法加载同意按钮模板")
+                return False
+            
+            # 截取屏幕
+            screenshot = self._capture_screen()
+            if screenshot is None:
+                self.logger.error("无法截取屏幕")
+                return False
+            
+            # 使用模板匹配查找同意按钮
+            top_left, bottom_right, similarity = self.find_template_in_image(
+                screenshot, agree_template, threshold=0.7
+            )
+            
+            if top_left is not None and bottom_right is not None:
+                # 计算同意按钮中心点
+                center_x = (top_left[0] + bottom_right[0]) // 2
+                center_y = (top_left[1] + bottom_right[1]) // 2
+                
+                self.logger.info(f"✅ 找到同意按钮！位置: ({center_x}, {center_y}), 相似度: {similarity:.3f}")
+                
+                # 点击同意按钮
+                pyautogui.click(center_x, center_y)
+                self.logger.info(f"✅ 已点击同意按钮: ({center_x}, {center_y})")
+                return True
+            else:
+                self.logger.debug(f"未找到同意按钮，最大相似度: {similarity:.3f}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"检测和点击同意按钮失败: {e}")
             return False
