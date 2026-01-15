@@ -410,6 +410,10 @@ class GameManager:
             # 等待一下让界面稳定
             time.sleep(2)
             
+            # 表单填写前：检测并点击同意按钮
+            if self._detect_and_click_agree():
+                time.sleep(1)
+            
             # 1. 检测并点击圆圈（如果存在）
             if self._detect_and_click_circle():
                 time.sleep(1)
@@ -435,7 +439,11 @@ class GameManager:
             # 5. 点击登录按钮
             if self._click_login_button():
                 self.logger.info("✅ 登录信息输入完成，等待登录处理...")
-                time.sleep(3)  # 等待登录处理
+                time.sleep(5)  # 等待登录处理
+                
+                # 表单填写后：检测并点击同意按钮
+                if self._detect_and_click_agree():
+                    time.sleep(5)
                 
                 # 6. 再次点击进入游戏按钮（登录后可能需要再次点击）
                 if self._click_enter_game_button():
